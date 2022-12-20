@@ -290,11 +290,12 @@ function read_address($tag, &$v, &$xf)
          continue;
       if (substr(trim($l), 0, 5) === "edit ") {
          $nm = getsingleval($l, 5);
+         if ($nm == "FABRIC_DEVICE") { break;}
          $n["$nm"] = array();
          $n["$nm"]["type"] = "subnet";
          if ($nm == "all") {
-             $n["$nm"]["addr"] = "0.0.0.0";
-             $n["$nm"]["mask"] = "0.0.0.0";
+            $n["$nm"]["addr"] = "0.0.0.0";
+            $n["$nm"]["mask"] = "0.0.0.0";
          }
       } else
       if (substr(trim($l), 0, 9) === "set type ") {
@@ -577,7 +578,13 @@ function read_policy($tag, &$v, &$xf)
       } else
       if (substr(trim($l), 0, 10) === "set users ") {
          $n["$nm"]["users"] = getsingleval($l, 10);
-      } else {
+      } else 
+      if (substr(trim($l), 0, 26) === "set internet-service-name ") {
+         $n["$nm"]["dstaddr"] = getsingleval($l, 26);
+      }
+      if (substr(trim($l), 0, 28) === "set internet-service enable") {
+         $n["$nm"]["service"] = "internet-service";
+      } else{
          dolog($logtag, "policy tag", trim($l));
       }
    }
@@ -1072,7 +1079,7 @@ function adtr_to_html_cell(&$s, $ra, &$v)
    $p .= '</thead><tbody>';
    $t = "";
    $al = array();
-   for ($i = 0; $i < count($s['dstaddr']); $i++) {
+   for ($i = 0; $i < count((array)$s['dstaddr']); $i++) {
       $d = $s['dstaddr'][$i];
       if (isset($v["net"][$d])) {
           if ($v["net"][$d]['type'] == "vip") {
@@ -1091,7 +1098,7 @@ function adtr_to_html_cell(&$s, $ra, &$v)
                          $sc[] = $o;
                       }
                    }
-                   for ($z = 0; $z < count($v["svc"][$o]["udp"]); $z++) {
+                   for ($z = 0; $z < count((array)$v["svc"][$o]["udp"]); $z++) {
                       if (($tp >= $v["svc"][$o]["udp"][$z][0]) && ($tp <= $v["svc"][$o]["udp"][$z][1])) {
                          $sc[] = $o;
                       }
@@ -1239,14 +1246,14 @@ function export_address($s, &$v)
       $r .= '<td>'.$ta["addr"].'</td>';
       $r .= '<td>'.$ta["rang"].'</td>';
       $cv = "";
-      if (count($ta["memb"])) {
+      if (count((array)$ta["memb"])) {
          $cv .= rule_to_html_cell_addr($ta["memb"], $v, false);
       } else {
          $cv = "&nbsp;";
       }
       $r .= '<td><ul class="adr">'.$cv.'</ul></td>';
       $cv = "";
-      if (count($ta["covr"])) {
+      if (count((array)$ta["covr"])) {
          $cv .= rule_to_html_cell_addr($ta["covr"], $v, false);
       } else {
          $cv = "&nbsp;";

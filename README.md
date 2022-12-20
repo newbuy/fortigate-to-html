@@ -3,7 +3,9 @@ Some sort of tools for analysing FortiGate firewall configuration and exporting 
 
 ## Notes
 * It will just process configuration files in text format.
-* Tested only with FortiGate version 5.0.x
+* Tested only with FortiGate version 7.0.9
+* Not Tested with vdom
+
 
 ## Features
 * Explodes address, service and group objects.
@@ -13,7 +15,7 @@ Some sort of tools for analysing FortiGate firewall configuration and exporting 
 * Creates single HTML file without any dependency.
 
 ## Requirements
-* php >= 5.5
+* PHP >= 8.2.0
 
 ## Usage
 Download FortiGate configuration from the device and run as follows;
@@ -24,5 +26,10 @@ This creates a new version of the original file with .html extension.
 
 ### Trademarks
 Products and Brands mentioned in this project are trademarks or registered trademarks of their respective holders.
+
+
+### Highlight Backgroud Color
+  Rules Be Highlight with any "all".
+  Rules Be gray when disabled.
 
 #### Enjoy!
