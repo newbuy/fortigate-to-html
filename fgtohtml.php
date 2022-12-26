@@ -124,6 +124,90 @@ function object_is_any(&$t)
    return false;
 }
 
+
+function read_schedule_recurring($tag, &$v, &$xf)
+{
+   global $logtag;
+   $array = array();
+   $count = count($xf);
+   $index = getindex("config firewall schedule recurring", $xf);
+   if ($index === false)
+      return;
+   for ($i = $index; $i < $count; $i++) {
+      $line = $xf[$i];
+      if ($line == "end")
+         break;
+      if (trim($line) == "next")
+         continue;
+      if (substr(trim($line), 0, 5) === "edit ") {
+         $nm = getsingleval($line, 5);
+         $n["$nm"] = array();
+         $n["$nm"]["type"] = "recurring";
+      }else
+      if (substr(trim($line), 0, 8) === "set day ") {
+         $n["$nm"]["day"] = substr(trim($line), 8);
+      }else
+      if (substr(trim($line), 0, 10) === "set start ") {
+         $n["$nm"]["start_Hour"]    = substr(trim($line), 10, 2);
+         $n["$nm"]["start_Min"]     = substr(trim($line), 13, 2);
+      }else
+      if (substr(trim($line), 0, 8) === "set end ") {
+         $n["$nm"]["end_Hour"]    = substr(trim($line), 8, 2);
+         $n["$nm"]["end_Min"]     = substr(trim($line), 11, 2);
+      }
+   }
+   $v[$tag] = $n;
+}
+
+
+function read_schedule_onetime($tag, &$v, &$xf)
+{
+   global $logtag;
+   $array = array();
+   $count = count($xf);
+   $index = getindex("config firewall schedule onetime", $xf);
+   if ($index === false)
+      return;
+   for ($i = $index; $i < $count; $i++) {
+      $line = $xf[$i];
+      if ($line == "end"){
+         break;
+      }
+      if (trim($line) == "next"){
+         $end     = $n["$nm"]["end_Year"]."-". $n["$nm"]["end_Month"].'-'. $n["$nm"]["end_Day"].' '. $n["$nm"]["end_Hour"].':'. $n["$nm"]["end_Min"];
+         $todaysDate = date("Y-m-d H:i:s");
+   
+         if ($end < $todaysDate) {
+            $n["$nm"]["expire"] = TRUE;
+         } else {
+            $n["$nm"]["expire"] = FALSE;
+         }
+         continue;
+      }
+      if (substr(trim($line), 0, 5) === "edit ") {
+         $nm = getsingleval($line, 5);
+         $n["$nm"] = array();
+         $n["$nm"]["type"] = "onetime";
+      }else
+      if (substr(trim($line), 0, 10) === "set start ") {
+         $n["$nm"]["start_Hour"]    = substr(trim($line), 10, 2);
+         $n["$nm"]["start_Min"]     = substr(trim($line), 13, 2);
+         $n["$nm"]["start_Year"]    = substr(trim($line), 16, 4);
+         $n["$nm"]["start_Month"]   = substr(trim($line), 21, 2);
+         $n["$nm"]["start_Day"]     = substr(trim($line), 24, 2);
+      }else
+      if (substr(trim($line), 0, 8) === "set end ") {
+         $n["$nm"]["end_Hour"]    = substr(trim($line), 8, 2);
+         $n["$nm"]["end_Min"]     = substr(trim($line), 11, 2);
+         $n["$nm"]["end_Year"]    = substr(trim($line), 14, 4);
+         $n["$nm"]["end_Month"]   = substr(trim($line), 19, 2);
+         $n["$nm"]["end_Day"]     = substr(trim($line), 22, 2);
+      }
+   }
+   $v[$tag] = $n;
+}
+
+
 function read_service($tag, &$v, &$xf)
 {
    global $logtag;
@@ -289,13 +373,16 @@ function read_address($tag, &$v, &$xf)
       if (trim($l) == "next")
          continue;
       if (substr(trim($l), 0, 5) === "edit ") {
-         $nm = getsingleval($l, 5);
-         if ($nm == "FABRIC_DEVICE") { break;}
+         $nm = getsingleval($l, 5);         
          $n["$nm"] = array();
          $n["$nm"]["type"] = "subnet";
-         if ($nm == "all") {
+         if ($nm == "all"){
             $n["$nm"]["addr"] = "0.0.0.0";
             $n["$nm"]["mask"] = "0.0.0.0";
+         }
+         if (($nm == "FABRIC_DEVICE") or ($nm == "none") or  ($nm == "FIREWALL_AUTH_PORTAL_ADDRESS")) {
+            $n["$nm"]["addr"] = "0.0.0.0";
+            $n["$nm"]["mask"] = "255.255.255.255";
          }
       } else
       if (substr(trim($l), 0, 9) === "set type ") {
@@ -525,6 +612,9 @@ function read_policy($tag, &$v, &$xf)
          $n["$nm"]["rulenum"] = $rn++;
          $n["$nm"]["action"] = "drop";
          $n["$nm"]["status"] = "enable";
+         $n["$nm"]["nat"] = "disable";
+         $n["$nm"]["logtraffic"] = "utmOnly";
+         
          $n["$nm"]["asic"] = "enable";
          $n["$nm"]["capt"] = "disable";
       } else
@@ -580,7 +670,7 @@ function read_policy($tag, &$v, &$xf)
          $n["$nm"]["users"] = getsingleval($l, 10);
       } else 
       if (substr(trim($l), 0, 26) === "set internet-service-name ") {
-         $n["$nm"]["dstaddr"] = getsingleval($l, 26);
+         (array)$n["$nm"]["dstaddr"] = getsingleval($l, 26);
       }
       if (substr(trim($l), 0, 28) === "set internet-service enable") {
          $n["$nm"]["service"] = "internet-service";
@@ -981,7 +1071,7 @@ function rule_to_html_section($s)
    return $r;
 }
 
-function rule_to_html_row($s, $asrc, $adst, $asvc)
+function rule_to_html_row($s, $asrc, $adst, $asvc) //mark rule colorful
 {
    $c = "";
    $l = 0;
@@ -1010,6 +1100,7 @@ function rule_to_html_row($s, $asrc, $adst, $asvc)
 
 function rule_to_html_cell($s, $px = "", $sx = "")
 {
+   $r = "";
    if ($s == "_sep_") {
       $r .= '<td class="sep"></td>';
    } else
@@ -1048,6 +1139,7 @@ function rule_to_html_cell_addr($s, &$v, $td = true, $pfx = "", $sfx = "")
 
 function rule_to_html_cell_serv($s, &$v)
 {
+   $r = "";
    if (is_array($s)) {
       $r .= '<td><ul class="svc">';
       for ($i = 0; $i < count($s); $i++) {
@@ -1118,7 +1210,7 @@ function adtr_to_html_cell(&$s, $ra, &$v)
       }
    }
    $cx = " class=\"nat\"";
-   if ($r['status'] == "disable")
+   if ($s['status'] == "disable")
       $cx = " class=\"dow\"";
    for ($i = 0; $i < count($al); $i++) {
       $t .= "<tr".$cx.">";
@@ -1364,6 +1456,96 @@ function export_service($id, &$v)
    return $r.'</tbody></table>';
 }
 
+
+function export_schedule_recurring($id, &$v)
+{
+   if (!isset($v["$id"]))
+      return "&nbsp;";
+   $r          = "<table><thead>";
+   $r          .= "<th>#</th>";
+   $r          .= "<th>Name</th>";
+   $r          .= "<th>Type</th>";
+   $r          .= "<th>start</th>";
+   $r          .= "<th>end</th>"; 
+   $r          .= "<th>week</th>"; 
+   $r         .= "</thead><tbody>";
+   $o          = $v["$id"];
+   $k          = array_keys($o);
+   $c          = 1;
+   for ($i = 0; $i < count($k); $i++) {
+      $key     = $k[$i];
+      $obj     = $o[$key];
+      $ta      = array();
+      $name    = $key;
+      $type    = $v[$id][$key]["type"];
+      if ($v[$id][$key]["start_Hour"] != '') {
+         $start   = $v[$id][$key]["start_Hour"].':'.$v[$id][$key]["start_Min"];
+      }else{
+         $start = '';
+      }
+      if ($v[$id][$key]["end_Hour"] != '') {
+         $end     = $v[$id][$key]["end_Hour"].':'.$v[$id][$key]["end_Min"];
+         if ($start == ''){$start = '00:00';}
+      }else{
+         $end = '';
+      }
+      
+      $day     = $v[$id][$key]["day"];
+      $r .= '<tr>';
+      $r .= '<td>'.$c.'</td>';      
+      $r .= '<td>'.$name.'</td>';
+      $r .= '<td>'.$type.'</td>';
+      $r .= '<td>'.$start.'</td>';
+      $r .= '<td>'.$end.'</td>';
+      $r .= '<td>'.$day.'</td>';
+      $r .= '</tr>';
+      ++$c;
+   }
+   return $r.'</tbody></table>';
+}
+
+
+function export_schedule_onetime($id, &$v)
+{
+   if (!isset($v["$id"]))
+      return "&nbsp;";
+   $r          = "<table><thead>";
+   $r          .= "<th>#</th>";
+   $r          .= "<th>Name</th>";
+   $r          .= "<th>Type</th>";
+   $r          .= "<th>start</th>";
+   $r          .= "<th>end</th>"; 
+   $r         .= "</thead><tbody>";
+   $o          = $v["$id"];
+   $k          = array_keys($o);
+   $c          = 1;
+   for ($i = 0; $i < count($k); $i++) {
+      $key     = $k[$i];
+      $obj     = $o[$key];
+      $ta      = array();
+      $name    = $key;
+      $type    = $v[$id][$key]["type"];
+      $start   = $v[$id][$key]["start_Year"]."-".$v[$id][$key]["start_Month"].'-'.$v[$id][$key]["start_Day"].' '.$v[$id][$key]["start_Hour"].':'.$v[$id][$key]["start_Min"];
+      $end     = $v[$id][$key]["end_Year"]."-".$v[$id][$key]["end_Month"].'-'.$v[$id][$key]["end_Day"].' '.$v[$id][$key]["end_Hour"].':'.$v[$id][$key]["end_Min"];
+      
+      if ($v[$id][$key]["expire"] == TRUE) {
+         $r .= '<tr class="dow">';
+      } else {
+         $r .= '<tr>';
+      }
+
+      $r .= '<td>'.$c.'</td>';      
+      $r .= '<td>'.$name.'</td>';
+      $r .= '<td>'.$type.'</td>';
+      $r .= '<td>'.$start.'</td>';
+      $r .= '<td>'.$end.'</td>';      
+      $r .= '</tr>';
+      ++$c;
+   }
+   return $r.'</tbody></table>';
+}
+
+
 function encrd_get_prop(&$o, $a, $t, $pfx = "") {
    if (!isset($o[$a]))
       return '<li>'.$t.' : <i>not configured</i></li>';
@@ -1494,6 +1676,7 @@ function create_html_header(&$v)
    $r .= '.ttab li:active, li.ttabact { border-top: 1px solid #a5a5a5; border-left: 1px solid #a5a5a5; border-right: 1px solid #fafafa; border-bottom: 1px solid #fafafa; padding: 3px 4px 3px 6px; } ';
    $r .= '#tabrule { display: block; } ';
    $r .= '#tabsobj { display: none; } ';
+   $r .= '#tabschl { display: none; } ';
    $r .= '#tabsrvc { display: none; } ';
    $r .= '#tabaobj { display: none; } ';
    $r .= '#tabvpns { display: none; } ';
@@ -1502,14 +1685,16 @@ function create_html_header(&$v)
    $r .= '<script type="text/javascript">';
    $r .= "   function showblock(lid) {
       document.getElementById('tabrule').style.display = 'none';
-      document.getElementById('rule').classList.remove('ttabact');
       document.getElementById('tabsobj').style.display = 'none';
-      document.getElementById('sobj').classList.remove('ttabact');
+      document.getElementById('tabschl').style.display = 'none';
       document.getElementById('tabsrvc').style.display = 'none';
-      document.getElementById('srvc').classList.remove('ttabact');
       document.getElementById('tabaobj').style.display = 'none';
-      document.getElementById('aobj').classList.remove('ttabact');
       document.getElementById('tabvpns').style.display = 'none';
+      document.getElementById('rule').classList.remove('ttabact');
+      document.getElementById('sobj').classList.remove('ttabact');
+      document.getElementById('schl').classList.remove('ttabact');
+      document.getElementById('srvc').classList.remove('ttabact');
+      document.getElementById('aobj').classList.remove('ttabact');
       document.getElementById('vpns').classList.remove('ttabact');
       var eid = document.getElementById('tab'+lid);
       eid.style.display = 'block';
@@ -1533,6 +1718,7 @@ function cunstruct_html(&$v)
    //$r .= '<li onclick="showblock(this.id)" id="objs">Objects</li>';
    $r .= '<li onclick="showblock(this.id)" id="aobj">Address Objects</li>';
    $r .= '<li onclick="showblock(this.id)" id="sobj">Static-NATed Objects</li>';
+   $r .= '<li onclick="showblock(this.id)" id="schl">Schedule Lists</li>';
    $r .= '<li onclick="showblock(this.id)" id="srvc">Service Objects</li>';
    $r .= '<li onclick="showblock(this.id)" id="vpns">Site-to-Site VPN</li>';
 
@@ -1540,6 +1726,7 @@ function cunstruct_html(&$v)
    $r .= '<div id="tabrule">'.$v["html_rules"].'</div>';
    $r .= '<div id="tabaobj">'.$v["html_aobjs"].'</div>';
    $r .= '<div id="tabsobj">'.$v["html_sobjs"].'</div>';
+   $r .= '<div id="tabschl">'.$v["html_schls"].'</div>';
    $r .= '<div id="tabsrvc">'.$v["html_srvcs"].'</div>';
    $r .= '<div id="tabvpns">'.$v["html_vpnss"].'</div>';
 
@@ -1557,6 +1744,8 @@ $v = array();
 read_service("svc", $v, $xf);
 read_service_group("svc", $v, $xf);
 calc_service("svc", $v);
+read_schedule_onetime("schedule_one", $v, $xf);
+read_schedule_recurring("schedule_recur", $v, $xf);
 read_address("net", $v, $xf);
 read_address_group("net", $v, $xf);
 read_address_vip("net", $v, $xf);
@@ -1578,6 +1767,9 @@ $v["html_sobjs"] = export_address_vip("net", $v);
 //$v["html_sobjs"] .= "<br><br>".export_address_dup($v);
 $v["html_srvcs"] = export_service("svc", $v);
 $v["html_vpnss"] = export_ipsec($v);
+$v["html_schls"] = export_schedule_onetime("schedule_one", $v);
+$v["html_schls"] .= export_schedule_recurring("schedule_recur", $v);
+
 
 $r = cunstruct_html($v);
 file_put_contents($cf.".html", $r);

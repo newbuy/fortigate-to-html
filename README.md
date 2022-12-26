@@ -8,10 +8,15 @@ Some sort of tools for analysing FortiGate firewall configuration and exporting 
 
 
 ## Features
-* Explodes address, service and group objects.
-* Finds duplicate address objects.
-* Explodes firewal policies.
-* Explodes IPSec phase-1/2 configurations.
+* Explodes address, service and group objects.<br />
+* Finds Schedules<br />
+<del>
+ Finds duplicate address objects.
+</del>
+* Explodes firewal policies.<br />
+<del>
+ Explodes IPSec phase-1/2 configurations.
+</del>
 * Creates single HTML file without any dependency.
 
 ## Requirements
